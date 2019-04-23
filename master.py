@@ -40,3 +40,14 @@ class master():
         
         self.graph = tf.get_default_graph()
         self.merged = tf.summary.merge_all()
+    def buildOptimizer(self):
+        with tf.name_scope('optimizer'): 
+            weights = self.labels * [1.0, 1.0, 1.0]
+            weights = tf.reduce_sum(weights, 3)
+            self.loss = tf.losses.softmax_cross_entropy(onehot_labels=self.labels, logits=self.model, weights=weights)
+            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+            with tf.control_dependencies(update_ops):
+                self.optimizer = tf.train.AdamOptimizer(learning_rate=self.lrate, name='adam_optimizer')
+                self.train_op = self.optimizer.minimize(self.loss, global_step=self.global_step, name='train_op')
+            tf.summary.scalar('total_loss', self.loss)
+            
