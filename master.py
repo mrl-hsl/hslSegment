@@ -50,4 +50,8 @@ class master():
                 self.optimizer = tf.train.AdamOptimizer(learning_rate=self.lrate, name='adam_optimizer')
                 self.train_op = self.optimizer.minimize(self.loss, global_step=self.global_step, name='train_op')
             tf.summary.scalar('total_loss', self.loss)
-            
+    def buildPredector(self):
+        with tf.name_scope('predictor'):
+            self.softmax_output = tf.nn.softmax(self.model, name='softmax_output')
+            self.predictions_argmax = tf.argmax(self.softmax_output, axis=-1, name='predictions_argmax', output_type=tf.int64)
+    
