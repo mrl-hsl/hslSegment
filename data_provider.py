@@ -33,6 +33,10 @@ def _parse_image_function(example_proto):
     # width = tf.cast(exm['width'], tf.int32)
     image = tf.cast(image, dtype=tf.float32)
     label = tf.cast(label, dtype=tf.float32)
+
+    # convert image and label from rgb to bgr
+    image = tf.reverse(image, axis=[2])
+    label = tf.reverse(label, axis=[2])
     return image, label
 
 
@@ -108,7 +112,7 @@ def _resize_data(image, mask):
     return image, mask
 
 
-def net_output_to_label(data):
+def one_hot_image_matrix_to_label(data):
     label = np.zeros((input_height, input_width, 3), np.uint8())
     for i in range(input_height):
         for j in range(input_width):
@@ -120,9 +124,9 @@ def net_output_to_label(data):
 
 
 def tfrecord_data_image_to_opencv_mat(image):
-    frm = image.astype('uint8')
-    frm = cv2.cvtColor(frm, cv2.COLOR_RGB2BGR)
-    return frm
+    image = image.astype('uint8')
+    # frm = cv2.cvtColor(frm, cv2.COLOR_RGB2BGR)
+    return image
 
 
 def cv_show_image(frame, frame_title, wait_time_ms):
