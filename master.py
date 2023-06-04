@@ -1,6 +1,6 @@
 import tensorflow as tf
 import network as net
-from data_provider import _parse_image_function, _flip_left_right, _crop_random, _one_hot_encode, _resize_data, _color
+from data_provider import _parse_image_function, _flip_left_right, _crop_random, _one_hot_encode, _resize_data, _color, tfrecord_data_image_to_opencv_mat, cv_show_image, one_hot_image_matrix_to_label
 import config as cfg
 import numpy as np
 import os
@@ -62,7 +62,7 @@ class Master():
 
     def prepare_data(self):
         dataset = tf.data.TFRecordDataset(
-            ['./tfrecords/train.tfrecords']
+            ['./train.tfrecords']
         )
         dataset = dataset.map(_parse_image_function)
         dataset = dataset.map(_flip_left_right)
@@ -138,10 +138,12 @@ class Master():
             try:
                 b = self.sess.run(self.trainBatch)
                 image = b[0]
-                # show_image(image)
+                # cv_image = tfrecord_data_image_to_opencv_mat(image)
+                # cv_show_image(cv_image, "image", 1)
                 image = image.reshape((1, input_height, input_width, 3))
                 label = b[1]
-                # show_label(label)
+                # cv_label = one_hot_image_matrix_to_label(label)
+                # cv_show_image(cv_label, "label", 0)
                 label = label.reshape(
                     (1, input_height, input_width, num_classes))
                 summary, opt = self.sess.run([self.merged, self.train_op,], feed_dict={
