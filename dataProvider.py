@@ -11,8 +11,11 @@ channels = [3, 3]
 
 palette = cfg.color_palette
 
-# Create a dictionary describing the features
+
 def _parse_image_function(example_proto):
+    """
+    Create a dictionary describing the features.
+    """
     image_feature_description = {
         'height': tf.FixedLenFeature([], tf.int64),
         'width': tf.FixedLenFeature([], tf.int64),
