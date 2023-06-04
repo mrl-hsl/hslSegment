@@ -1,6 +1,6 @@
 import tensorflow as tf
 import network as net
-from dataProvider import _parse_image_function, _flip_left_right, _crop_random, _one_hot_encode, _resize_data, _color
+from data_provider import _parse_image_function, _flip_left_right, _crop_random, _one_hot_encode, _resize_data, _color
 import config as cfg
 import numpy as np
 import os

@@ -1,6 +1,6 @@
 import tensorflow as tf
 import os
-from dataProvider import _parse_image_function
+from data_provider import _parse_image_function
 import cv2
 
 SHOW_IMAGE = True
