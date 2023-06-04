@@ -48,7 +48,7 @@ for data_dir in os.listdir(src_dir):
     for img in os.listdir(os.path.join(data_dir_path, 'image')):
         data_counter = data_counter + 1
 
-cnt = 0 # This counter is used to split the data to 2 parts: train/ and test/
+cnt = 0  # This counter is used to split the data to 2 parts: train/ and test/
 for data_dir in os.listdir(src_dir):
     data_dir_path = os.path.join(src_dir, data_dir)
     for img in os.listdir(os.path.join(data_dir_path, 'image')):
@@ -58,7 +58,8 @@ for data_dir in os.listdir(src_dir):
         #                     interpolation=cv2.INTER_NEAREST)
 
         img = img.split('.')[0]
-        label = cv2.imread(os.path.join(data_dir_path, 'label', img + '_labeld.png'))
+        label = cv2.imread(os.path.join(
+            data_dir_path, 'label', img + '_labeled.png'))
         # label = cv2.resize(label, (320, 240), interpolation=cv2.INTER_NEAREST)
 
         if showSampel == True:
