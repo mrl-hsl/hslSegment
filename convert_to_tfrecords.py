@@ -3,6 +3,7 @@ import cv2
 import glob
 import os
 import numpy as np
+from data_provider import image_example
 
 # Enable eager execution
 tf.enable_eager_execution()
