@@ -10,6 +10,9 @@ crop_percent = 0.6
 channels = [3, 3]
 
 palette = cfg.color_palette
+num_classes = len(palette)
+input_width = cfg.INPUT_WIDTH
+input_height = cfg.INPUT_HEIGHT
 
 
 def _parse_image_function(example_proto):
@@ -103,3 +106,24 @@ def _resize_data(image, mask):
     mask = tf.squeeze(mask, axis=0)
 
     return image, mask
+
+
+def net_output_to_label(data):
+    label = np.zeros((input_height, input_width, 3), np.uint8())
+    for i in range(input_height):
+        for j in range(input_width):
+            index = np.argmax(data[i][j])
+            for class_name, class_index in zip(palette, range(num_classes)):
+                if (index == class_index):
+                    label[i][j] = palette[class_name]
+    return label
+
+
+def tfrecord_data_image_to_opencv_mat(image):
+    frm = image.astype('uint8')
+    frm = cv2.cvtColor(frm, cv2.COLOR_RGB2BGR)
+    return frm
+
+def cv_show_image(frame, frame_title, wait_time_ms):
+    cv2.imshow(frame_title, frame)
+    cv2.waitKey(wait_time_ms)
