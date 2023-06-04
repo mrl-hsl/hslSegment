@@ -124,6 +124,7 @@ def tfrecord_data_image_to_opencv_mat(image):
     frm = cv2.cvtColor(frm, cv2.COLOR_RGB2BGR)
     return frm
 
+
 def cv_show_image(frame, frame_title, wait_time_ms):
     cv2.imshow(frame_title, frame)
     cv2.waitKey(wait_time_ms)
