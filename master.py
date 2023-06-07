@@ -10,6 +10,7 @@ palette = cfg.color_palette
 num_classes = len(palette)
 input_width = cfg.INPUT_WIDTH
 input_height = cfg.INPUT_HEIGHT
+max_models_to_keep = cfg.MAX_MODELS_TO_KEEP
 
 
 class Master():
@@ -44,7 +45,7 @@ class Master():
             'logs/' + str(self.log_index) + "/train", self.sess.graph, flush_secs=10)
         # self.test_writer = tf.summary.FileWriter(
         #     'logs/' + str(self.log_index) + "/test", self.sess.graph, flush_secs=10)
-        self.saver = tf.train.Saver()
+        self.saver = tf.train.Saver(max_to_keep=max_models_to_keep)
 
         # if load == False:
         #     self.sess.run(tf.global_variables_initializer())
@@ -127,11 +128,22 @@ class Master():
 
     def saveModel(self):
         path = './models/' + str(self.train_op_counter)
-        isExist = os.path.exists(path)
-        if not isExist:
+        path_exists = os.path.exists(path)
+        if not path_exists:
             os.makedirs(path)
-            # print("The new directory is created!")
-        self.saver.save(self.sess, path + '/model')
+
+        model_meta_path = path + '/meta'
+        model_meta_path_exists = os.path.exists(model_meta_path)
+        if not model_meta_path_exists:
+            os.makedirs(model_meta_path)
+
+        model_pb_path = path + '/pb'
+        model_pb_path_exists = os.path.exists(model_pb_path)
+        if not model_pb_path_exists:
+            os.makedirs(model_pb_path)
+
+        self.saver.save(self.sess, model_meta_path + '/saved_model')
+        tf.saved_model.simple_save(self.sess, model_pb_path, inputs={"input": self.input}, outputs={"model": self.softmax_output})
 
     def teach(self):
         while True:

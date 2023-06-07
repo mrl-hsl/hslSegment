@@ -17,3 +17,5 @@ color_palette = {
     # 'penalty': [0, 255, 255], # penalty
     # 'circle': [0, 0, 255], # circle
 }
+
+MAX_MODELS_TO_KEEP = 5
