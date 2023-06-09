@@ -72,13 +72,12 @@ class network():
                 normalizer_params=self.norm_params,
                 activation_fn=self.activation,
                 weights_regularizer=None,
-                padding=pad,
                 rate=dilationFactor,
                 scope='pw'
             )
             return output
 
-    def spp(self,input):
+    def spp(self, input):
         with tf.variable_scope("spp"):
             # prymid1 = tf.layers.conv2d(input, 24, 1, dilation_rate=(1,1), activation=tf.nn.relu6, padding="same",name = "p1")
             # prymid1 = self.sepConvMobileNet(input, 24, 1, dilation_rate=(1,1), activation=tf.nn.relu6, padding="same",name = "p1")
@@ -110,8 +109,7 @@ class network():
         spp_merg = self.conv2d(spp, 48, 1, 1, 'spp-merg')
         o1 = tf.image.resize_bilinear(spp_merg, [120, 160])
 
-
-        concat = tf.concat([o1, pooling],3,name = "concat")
+        concat = tf.concat([o1, pooling], 3, name="concat")
 
         o2 = self.sepConvMobileNet(concat, 3, 3, 1, "o2", 1)
 
