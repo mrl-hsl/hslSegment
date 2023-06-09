@@ -7,7 +7,7 @@ class network():
             tf.float32, [None, 240, 320, 3], name='input')
         self.isTraning = tf.placeholder(tf.bool, [], name='isTraning')
 
-        self.activation = tf.nn.relu6
+        self.activation = tf.nn.leaky_relu
         self.weightInitializer = tf.contrib.layers.xavier_initializer
         self.normalizer_fn = None
         # tf.contrib.layers.batch_norm
@@ -72,37 +72,52 @@ class network():
                 normalizer_params=self.norm_params,
                 activation_fn=self.activation,
                 weights_regularizer=None,
+                padding=pad,
                 rate=dilationFactor,
                 scope='pw'
             )
             return output
 
-    def model(self):
-        conv1 = self.conv2d(self.input, 8, 3, 2, 'conv1')
+    def spp(self,input):
+        with tf.variable_scope("spp"):
+            # prymid1 = tf.layers.conv2d(input, 24, 1, dilation_rate=(1,1), activation=tf.nn.relu6, padding="same",name = "p1")
+            # prymid1 = self.sepConvMobileNet(input, 24, 1, dilation_rate=(1,1), activation=tf.nn.relu6, padding="same",name = "p1")
+            # prymid2 = tf.layers.separable_conv2d(input, 24, 3, dilation_rate=(6,6), activation=tf.nn.relu6, padding="same",name = "p2")
+            # prymid3 = tf.layers.separable_conv2d(input, 24, 3, dilation_rate=(12,12), activation=tf.nn.relu6, padding="same",name = "p3")
+            # prymid4 = tf.layers.separable_conv2d(input, 24, 3, dilation_rate=(18,18), activation=tf.nn.relu6, padding="same",name = "p4")
+            prymid1 = self.sepConvMobileNet(input, 3, 24, 1, "p1", pad='SAME')
+            prymid2 = self.sepConvMobileNet(input, 3, 24, 1, "p2", pad='SAME')
+            prymid3 = self.sepConvMobileNet(input, 3, 24, 1, "p3", pad='SAME')
+            prymid4 = self.conv2d(input, 24, 1, 1, 'p4')
 
-        conv2 = self.sepConvMobileNet(conv1, 3, 16, 1, "conv2")
+            sppConcat = tf.concat([prymid1,prymid2,prymid3,prymid4],3,name="sppConcat")
+
+            return sppConcat
+
+    def model(self):
+        conv1 = self.conv2d(self.input, 6, 3, 2, 'conv1')
+
+        conv2 = self.sepConvMobileNet(conv1, 3, 12, 1, "conv2")
         conv2 = self.avgPooling(conv2, 2, 2)
 
-        conv3 = self.sepConvMobileNet(conv2, 3, 32, 1, "conv3")
+        conv3 = self.sepConvMobileNet(conv2, 3, 12, 1, "conv3")
         conv3 = self.avgPooling(conv3, 2, 2)
 
-        conv4 = self.sepConvMobileNet(conv3, 3, 32, 1, "conv4")
-        conv4 = self.avgPooling(conv4, 2, 2)
+        spp = self.spp(conv3)
 
-        conv5 = self.sepConvMobileNet(conv4, 3, 32, 1, "conv5", 2)
-        conv6 = self.sepConvMobileNet(conv5, 3, 32, 1, "conv6", 4)
+        pooling = self.conv2d(conv1, 12, 1, 1, 'pooling')
 
-        o1 = tf.image.resize_bilinear(conv6, [60, 80])
+        spp_merg = self.conv2d(spp, 48, 1, 1, 'spp-merg')
+        o1 = tf.image.resize_bilinear(spp_merg, [120, 160])
 
-        conv7 = self.sepConvMobileNet(o1, 3, 64, 1, "conv7", 1)
 
-        o2 = tf.image.resize_bilinear(conv7, [240, 320])
+        concat = tf.concat([o1, pooling],3,name = "concat")
 
-        conv8 = self.sepConvMobileNet(o2, 3, 64, 1, "conv8", 1)
+        o2 = self.sepConvMobileNet(concat, 3, 3, 1, "o2", 1)
 
-        conv9 = self.sepConvMobileNet(conv8, 3, 3, 1, "conv9", 1)
+        out = tf.image.resize_bilinear(o2, [240, 320])
 
-        return conv9
+        return out
 
 
 net = network()
