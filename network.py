@@ -1,10 +1,17 @@
 import tensorflow as tf
+import config as cfg
 
+input_width = cfg.INPUT_WIDTH
+input_height = cfg.INPUT_HEIGHT
+output_width = cfg.OUTPUT_WIDTH
+output_height = cfg.OUTPUT_HEIGHT
+palette = cfg.color_palette
+num_classes = len(palette)
 
 class network():
     def __init__(self):
         self.input = tf.placeholder(
-            tf.float32, [None, 240, 320, 3], name='input')
+            tf.float32, [None, input_height, input_width, 3], name='input')
         self.isTraning = tf.placeholder(tf.bool, [], name='isTraning')
 
         self.activation = tf.nn.leaky_relu
@@ -111,9 +118,9 @@ class network():
 
         concat = tf.concat([o1, pooling], 3, name="concat")
 
-        o2 = self.sepConvMobileNet(concat, 3, 3, 1, "o2", 1)
+        o2 = self.sepConvMobileNet(concat, 3, num_classes, 1, "o2", 1)
 
-        out = tf.image.resize_bilinear(o2, [240, 320])
+        out = tf.image.resize_bilinear(o2, [output_height, output_width])
 
         return out
 
