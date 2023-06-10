@@ -73,8 +73,8 @@ class Master():
         train_dataset = train_dataset.map(_resize_data)
         train_dataset = train_dataset.map(_color)
         train_dataset = train_dataset.shuffle(buffer_size=50)
-        # train_set = train_set.batch(16)
-        # train_set = train_set.repeat(100)
+        train_dataset = train_dataset.batch(1)
+        train_dataset = train_dataset.repeat(100)
         train_iterator = train_dataset.make_initializable_iterator()
         next_train_batch = train_iterator.get_next()
         self.trainBatch = next_train_batch
@@ -170,7 +170,6 @@ class Master():
             # print("predictions:", predictions.shape)
             for i in range(batch[0].shape[0]):
                 seg = predictions[i]
-                print(batch[:][0].shape)
                 cv_image = tfrecord_data_image_to_opencv_mat(batch[:][0][0])
                 cv_show_image(cv_image, "image", 1)
                 cv_ground_truth = one_hot_image_matrix_to_label(batch[:][1][0])
@@ -183,22 +182,17 @@ class Master():
     def teach(self):
         while True:
             try:
-                b = self.sess.run(self.trainBatch)
-                image = b[0]
+                batch = self.sess.run(self.trainBatch)
                 # cv_image = tfrecord_data_image_to_opencv_mat(image)
                 # cv_show_image(cv_image, "image", 1)
-                image = image.reshape((1, input_height, input_width, 3))
-                label = b[1]
                 # cv_label = one_hot_image_matrix_to_label(label)
                 # cv_show_image(cv_label, "label", 0)
-                label = label.reshape(
-                    (1, input_height, input_width, num_classes))
                 summary, opt = self.sess.run([self.merged, self.train_op,], feed_dict={
-                                             self.input: image, self.label: label, self.lrate: 0.001})
+                                             self.input: batch[0][:], self.label: batch[1][:], self.lrate: 0.001})
                 # self.sess.run(self.metrics_reset_op)
                 self.train_writer.add_summary(summary, self.train_op_counter)
                 summary, valLose, op_update, op_PerClass = self.sess.run([self.merged, self.loss, self.acc_update_op, self.accPerClassOp], feed_dict={
-                                                                         self.input: image, self.label: label, self.lrate: 0.001})
+                                                                         self.input: batch[0][:], self.label: batch[1][:], self.lrate: 0.001})
                 _acc_value = self.sess.run(self.acc_value)
                 accperclass = self.sess.run(self.accPerClass)
                 print(self.train_op_counter, "valLoss, ",
