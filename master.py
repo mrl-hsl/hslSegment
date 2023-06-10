@@ -115,7 +115,7 @@ class Master():
             self.softmax_output = tf.nn.softmax(
                 self.model, name='softmax_output')
             self.predictions_argmax = tf.argmax(
-                self.softmax_output, axis=-1, name='predictions_argmax', output_type=tf.int64)
+                self.softmax_output, axis=-1, name='predictions_argmax', output_type=tf.int32)
 
     def buildMetrics(self):
         with tf.variable_scope('metrics') as scope:
