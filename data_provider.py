@@ -84,8 +84,14 @@ def _one_hot_encode(x: tf.Tensor, y: tf.Tensor) -> tf.Tensor:
     """
     one_hot_map = []
     for class_name in palette:
-        class_map = tf.cast(tf.reduce_all(
-            tf.equal(y, palette[class_name]), axis=-1), tf.float32)
+        eq_list = []
+        for color in palette[class_name]:
+            eq = tf.equal(y, color)
+            rd = tf.reduce_all(eq, axis=-1)
+            eq_list.append(rd)
+        orl = tf.reduce_any(eq_list, axis=0)
+        # eq = tf.equal(y, palette[class_name])
+        class_map = tf.cast(orl, tf.float32)
         one_hot_map.append(class_map)
     one_hot_map = tf.stack(one_hot_map, axis=-1)
     y = tf.cast(one_hot_map, tf.float32)
@@ -143,12 +149,21 @@ def one_hot_image_matrix_to_label(data):
     label = np.zeros((input_height, input_width, 3), np.uint8())
     for i in range(input_height):
         for j in range(input_width):
-            index = np.argmax(data[i][j])
+            label_index = np.argmax(data[i][j])
             for class_name, class_index in zip(palette, range(num_classes)):
-                if (index == class_index):
-                    label[i][j] = palette[class_name]
+                if (label_index == class_index):
+                    label[i][j] = palette[class_name][0]
     return label
 
+def label_matrix_to_label(data):
+    label = np.zeros((input_height, input_width, 3), np.uint8())
+    for i in range(input_height):
+        for j in range(input_width):
+            label_index = data[i][j]
+            for class_name, class_index in zip(palette, range(num_classes)):
+                if (label_index == class_index):
+                    label[i][j] = palette[class_name][0]
+    return label
 
 def tfrecord_data_image_to_opencv_mat(image):
     image = image.astype('uint8')
