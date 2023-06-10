@@ -19,3 +19,6 @@ color_palette = {
 }
 
 MAX_MODELS_TO_KEEP = 5
+
+DEBUG_ENABLED = False
+

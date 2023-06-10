@@ -1,6 +1,6 @@
 import tensorflow as tf
 import network as net
-from data_provider import _parse_image_function, _flip_left_right, _crop_random, _one_hot_encode, _resize_data, _color, tfrecord_data_image_to_opencv_mat, cv_show_image, one_hot_image_matrix_to_label
+from data_provider import _parse_image_function, _flip_left_right, _crop_random, _one_hot_encode, _resize_data, _color, tfrecord_data_image_to_opencv_mat, cv_show_image, one_hot_image_matrix_to_label, label_matrix_to_label
 import config as cfg
 import numpy as np
 import os
@@ -11,6 +11,7 @@ num_classes = len(palette)
 input_width = cfg.INPUT_WIDTH
 input_height = cfg.INPUT_HEIGHT
 max_models_to_keep = cfg.MAX_MODELS_TO_KEEP
+debug_enabled = cfg.DEBUG_ENABLED
 
 
 class Master():
@@ -43,8 +44,8 @@ class Master():
 
         self.train_writer = tf.summary.FileWriter(
             'logs/' + str(self.log_index) + "/train", self.sess.graph, flush_secs=10)
-        # self.test_writer = tf.summary.FileWriter(
-        #     'logs/' + str(self.log_index) + "/test", self.sess.graph, flush_secs=10)
+        self.test_writer = tf.summary.FileWriter(
+            'logs/' + str(self.log_index) + "/test", self.sess.graph, flush_secs=10)
         self.saver = tf.train.Saver(max_to_keep=max_models_to_keep)
 
         # if load == False:
@@ -55,34 +56,45 @@ class Master():
         self.sess.run(tf.global_variables_initializer())
         self.sess.run(tf.local_variables_initializer())
         self.sess.run(self.trainIt.initializer)
-        # self.sess.run(self.testIt.initializer)
+        self.sess.run(self.testIt.initializer)
         self.graph = tf.get_default_graph()
         self.merged = tf.summary.merge_all()
 
         self.train_op_counter = 0
 
     def prepare_data(self):
-        dataset = tf.data.TFRecordDataset(
+        train_dataset = tf.data.TFRecordDataset(
             ['./train.tfrecords']
         )
-        dataset = dataset.map(_parse_image_function)
-        dataset = dataset.map(_flip_left_right)
-        dataset = dataset.map(_crop_random)
-        dataset = dataset.map(_one_hot_encode)
-        dataset = dataset.map(_resize_data)
-        dataset = dataset.map(_color)
-        dataset = dataset.shuffle(buffer_size=50)
-        train_set = dataset
+        train_dataset = train_dataset.map(_parse_image_function)
+        train_dataset = train_dataset.map(_flip_left_right)
+        train_dataset = train_dataset.map(_crop_random)
+        train_dataset = train_dataset.map(_one_hot_encode)
+        train_dataset = train_dataset.map(_resize_data)
+        train_dataset = train_dataset.map(_color)
+        train_dataset = train_dataset.shuffle(buffer_size=50)
         # train_set = train_set.batch(16)
-        train_set = train_set.repeat(100)
-        train_iterator = train_set.make_initializable_iterator()
+        # train_set = train_set.repeat(100)
+        train_iterator = train_dataset.make_initializable_iterator()
         next_train_batch = train_iterator.get_next()
-
         self.trainBatch = next_train_batch
         self.trainIt = train_iterator
 
-        # self.testBatch = data.next_test_batch
-        # self.testIt = data.test_iterator
+        test_dataset = tf.data.TFRecordDataset(
+            ['./test.tfrecords']
+        )
+        test_dataset = test_dataset.map(_parse_image_function)
+        # test_dataset = test_dataset.map(_flip_left_right)
+        # test_dataset = test_dataset.map(_crop_random)
+        test_dataset = test_dataset.map(_one_hot_encode)
+        test_dataset = test_dataset.map(_resize_data)
+        # test_dataset = test_dataset.map(_color)
+        # test_dataset = test_dataset.shuffle(buffer_size=50)
+        test_dataset  = test_dataset.batch(1)
+        test_iterator = test_dataset.make_initializable_iterator()
+        next_test_batch = test_iterator.get_next()
+        self.testBatch = next_test_batch
+        self.testIt = test_iterator
 
     def buildOptimizer(self):
         with tf.name_scope('optimizer'):
@@ -143,7 +155,30 @@ class Master():
             os.makedirs(model_pb_path)
 
         self.saver.save(self.sess, model_meta_path + '/saved_model')
-        tf.saved_model.simple_save(self.sess, model_pb_path, inputs={"input": self.input}, outputs={"model": self.softmax_output})
+        tf.saved_model.simple_save(self.sess, model_pb_path, inputs={
+                                   "input": self.input}, outputs={"model": self.softmax_output})
+
+    def eval(self):
+        try:
+            batch = self.sess.run(self.testBatch)
+            feed = {
+                self.input: batch[:][0], self.label: batch[:][1], self.lrate: 0.001}
+            summary, valLose, predictions = self.sess.run(
+                [self.merged, self.loss, self.predictions_argmax], feed_dict=feed)
+            self.test_writer.add_summary(summary, self.train_op_counter)
+            # print(self.train_op_counter, "**************, ", valLose)
+            # print("predictions:", predictions.shape)
+            for i in range(batch[0].shape[0]):
+                seg = predictions[i]
+                print(batch[:][0].shape)
+                cv_image = tfrecord_data_image_to_opencv_mat(batch[:][0][0])
+                cv_show_image(cv_image, "image", 1)
+                cv_ground_truth = one_hot_image_matrix_to_label(batch[:][1][0])
+                cv_show_image(cv_ground_truth, "ground_truth", 1)
+                cv_label = label_matrix_to_label(seg)
+                cv_show_image(cv_label, "label", 0)
+        except tf.errors.OutOfRangeError:
+            self.sess.run(self.testIt.initializer)
 
     def teach(self):
         while True:
@@ -171,6 +206,10 @@ class Master():
 
                 if _acc_value > 0.96 or self.train_op_counter % 500 == 0:
                     self.saveModel()
+
+                if (debug_enabled):
+                    if self.train_op_counter % 500 == 0:
+                        self.eval()
 
                 self.train_op_counter += 1
             except tf.errors.OutOfRangeError:
