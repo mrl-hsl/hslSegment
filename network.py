@@ -1,109 +1,76 @@
 import tensorflow as tf
 
-
-class network():
+class Network():
     def __init__(self):
-        self.input = tf.placeholder(tf.float32, [None, 240, 320,3], name='input')
-        self.isTraning = tf.placeholder(tf.bool, [], name='isTraning')
+        self.input = tf.placeholder(tf.float32, [None, 240, 320, 3], name='input')
+        self.isTraining = tf.placeholder(tf.bool, [], name='isTraining')
         
         self.activation = tf.nn.relu6
         self.weightInitializer = tf.contrib.layers.xavier_initializer
         self.normalizer_fn = None
-        #tf.contrib.layers.batch_norm
         self.norm_params = None
-        #{"is_training": self.isTraning}
 
-    def conv2d(self,input,nFilters,kernelSize,_strides,_name):
-        output = tf.contrib.layers.conv2d(
-            inputs= input,
-            num_outputs= nFilters,
-            kernel_size= kernelSize,
-            stride= _strides,
-            scope= _name,
-            weights_initializer= self.weightInitializer(),
-            normalizer_fn= self.normalizer_fn ,
-            normalizer_params= self.norm_params,
-            activation_fn= self.activation,
-            weights_regularizer= None,
-            padding="SAME"
-        )
-        return output
-    def maxPooling(self,inputs, kernelSize, strides):
-        return tf.contrib.layers.max_pool2d(
-                    inputs,
-                    kernelSize,
-                    stride=strides,
-                    padding='VALID'
-                )
-
-    def avgPooling(self,inputs, kernelSize, strides):
-        return tf.contrib.layers.avg_pool2d(
-                    inputs,
-                    kernelSize,
-                    stride=strides,
-                    padding='VALID'
-                )
-    def sepConvMobileNet(self,features,kernel_size, out_filters,stride, _name,dilationFactor = 1,pad='SAME'):
+    def separableConvMobileNet(self, features, kernel_size, out_filters, stride, _name, dilationFactor=1, pad='SAME'):
         with tf.variable_scope(_name):
-            output = tf.contrib.layers.separable_conv2d(
-                        features,
-                        None,
-                        kernel_size,
-                        depth_multiplier=1,
-                        stride=stride,
-                        weights_initializer=self.weightInitializer(),
-                        normalizer_fn=self.normalizer_fn,
-                        normalizer_params=self.norm_params,
-                        activation_fn=self.activation,
-                        weights_regularizer=None,
-                        padding=pad,
-                        rate = dilationFactor,
-                        scope='dw'
-                        )
-            output = tf.contrib.layers.conv2d(
-                        output,
-                        out_filters, [1, 1],
-                        stride=1,
-                        weights_initializer=self.weightInitializer(),
-                        normalizer_fn=self.normalizer_fn,
-                        normalizer_params=self.norm_params,
-                        activation_fn=self.activation,
-                        weights_regularizer=None,
-                        rate = dilationFactor,
-                        scope='pw'
-                        )
+            output = tf.layers.separable_conv2d(
+                features,
+                depth_multiplier=1,
+                kernel_size=kernel_size,
+                strides=stride,
+                padding=pad,
+                activation=self.activation,
+                depthwise_initializer=self.weightInitializer(),
+                pointwise_initializer=self.weightInitializer(),
+                depthwise_regularizer=None,
+                pointwise_regularizer=None,
+                use_bias=False,
+            )
+
+            output = tf.layers.conv2d(
+                output,
+                filters=out_filters,
+                kernel_size=(1, 1),
+                strides=(1, 1),
+                padding='SAME',
+                activation=self.activation,
+                kernel_initializer=self.weightInitializer(),
+                kernel_regularizer=None,
+                use_bias=False,
+            )
+
             return output
+
     def model(self):
-        conv1 = self.conv2d(self.input,8,3,2,'conv1')
+        conv1 = self.separableConvMobileNet(self.input, 3, 8, 2, 'conv1')
         
-        conv2 = self.sepConvMobileNet(conv1,3,16,1,"conv2")
-        conv2 = self.avgPooling(conv2,2,2)
+        conv2 = self.separableConvMobileNet(conv1, 3, 16, 1, 'conv2')
+        conv2 = tf.layers.average_pooling2d(conv2, pool_size=(2, 2), strides=(2, 2), padding='VALID')
         
-        conv3 = self.sepConvMobileNet(conv2,3,32,1,"conv3")
-        conv3 = self.avgPooling(conv3,2,2)
+        conv3 = self.separableConvMobileNet(conv2, 3, 32, 1, 'conv3')
+        conv3 = tf.layers.average_pooling2d(conv3, pool_size=(2, 2), strides=(2, 2), padding='VALID')
 
-        conv4 = self.sepConvMobileNet(conv3,3,32,1,"conv4")
-        conv4 = self.avgPooling(conv4,2,2)
+        conv4 = self.separableConvMobileNet(conv3, 3, 32, 1, 'conv4')
+        conv4 = tf.layers.average_pooling2d(conv4, pool_size=(2, 2), strides=(2, 2), padding='VALID')
 
-        conv5 = self.sepConvMobileNet(conv4,3,32,1,"conv5",2)
-        conv6 = self.sepConvMobileNet(conv5,3,32,1,"conv6",4)
+        conv5 = self.separableConvMobileNet(conv4, 3, 32, 1, 'conv5', dilationFactor=2)
+        conv6 = self.separableConvMobileNet(conv5, 3, 32, 1, 'conv6', dilationFactor=4)
 
-        o1 = tf.image.resize_bilinear(conv6,[60,80])
+        o1 = tf.image.resize_bilinear(conv6, [60, 80])
 
-        conv7 = self.sepConvMobileNet(o1,3,64,1,"conv7",1)
+        conv7 = self.separableConvMobileNet(o1, 3, 64, 1, 'conv7')
 
-        o2 = tf.image.resize_bilinear(conv7,[240,320])
+        o2 = tf.image.resize_bilinear(conv7, [240, 320])
 
-        conv8 = self.sepConvMobileNet(o2,3,64,1,"conv8",1)
+        conv8 = self.separableConvMobileNet(o2, 3, 64, 1, 'conv8')
         
-        conv9 = self.sepConvMobileNet(conv8,3,3,1,"conv9",1)
+        conv9 = self.separableConvMobileNet(conv8, 3, 3, 1, 'conv9')
         
         return conv9
 
-net = network()
+net = Network()
 model = net.model()
-model = tf.identity(model,name="model")
+model = tf.identity(model, name="model")
 
-if __name__=='__main__':
+if __name__ == '__main__':
     with tf.Session() as sess:
         writer = tf.summary.FileWriter('logs/graphs', sess.graph)
