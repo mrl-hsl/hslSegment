@@ -1,4 +1,9 @@
-# Semantic Segmentation of Field Lines and Grass for Soccer Robot
+<h1 align="center">
+  <br>
+  <a href="https://github.com/"><img src="https://github.com/Awrsha/Tello-Drone-Object-Following/assets/89135083/d5d03b44-eb26-4093-b4dd-1679c6530d1c" alt="QUAD" width="600"></a>
+  <b><h4 align="center">.:: Semantic Segmentation of Field Lines and Grass for Soccer Robot ::.</h4></b>
+</h1>
+
 
 ## Overview
 
