@@ -17,10 +17,10 @@ class Master():
 
         self.testBatch = data.next_test_batch
         self.testIt = data.test_iterator
+        
+        self.optimizer = None
 
-        self.buildOptimizer()
-        self.buildPredector()
-        self.buildMetrics()
+        self.build()
 
         self.sess = tf.Session()
 
@@ -32,39 +32,38 @@ class Master():
         if load == False:
             self.sess.run(tf.global_variables_initializer())
             self.sess.run(tf.local_variables_initializer())
+            self.optimizer = tf.train.AdamOptimizer(learning_rate=self.lrate)
         else:
             self.saver.restore(self.sess, modelAddress)
         
-        self.graph = tf.get_default_graph()
         self.merged = tf.summary.merge_all()
 
-    def buildOptimizer(self):
-        with tf.name_scope('optimizer'): 
+    def build(self):
+        self.build_optimizer()
+        self.build_predictor()
+        self.build_metrics()
+
+    def build_optimizer(self):
+        with tf.name_scope('optimizer'):
             weights = self.labels * [1.0, 1.0, 1.0]
             weights = tf.reduce_sum(weights, 3)
-            self.loss = tf.losses.softmax_cross_entropy(onehot_labels=self.labels, logits=self.model, weights=weights)
+            self.loss = tf.losses.softmax_cross_entropy(onehot_labels=self.labels, 
+                                                        logits=self.model, 
+                                                        weights=weights)
             update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-
-            loss_scale = 1e4
-            loss_scaled = self.loss * loss_scale
-
-            optimizer = tf.train.AdamOptimizer(learning_rate=self.lrate, name='adam_optimizer')
-
-            def clip_grads(grads_and_vars):
-                gradients, variables = zip(*grads_and_vars)
-                clipped_gradients, _ = tf.clip_by_global_norm(gradients, clip_norm=1.0)
-                return list(zip(clipped_gradients, variables))
-
-            mixed_precision_optimizer = tf.train.experimental.enable_mixed_precision_graph_rewrite(optimizer,
-                                                                                                      loss_scale=loss_scale)
-
-            grads_and_vars = mixed_precision_optimizer.compute_gradients(loss_scaled)
-            clipped_grads_and_vars = clip_grads(grads_and_vars)
-            self.train_op = mixed_precision_optimizer.apply_gradients(clipped_grads_and_vars, global_step=self.global_step)
+            with tf.control_dependencies(update_ops):
+                self.train_op = self.optimizer.minimize(self.loss, global_step=self.global_step)
 
             tf.summary.scalar('total_loss', self.loss)
 
-    def buildPredector(self):
+    def build_predictor(self):
         with tf.name_scope('predictor'):
             self.softmax_output = tf.nn.softmax(self.model, name='softmax_output')
-            self.predictions_argmax = tf.argmax(self.softmax_output, axis=-1, name='predictions_argmax', output_type=tf.int64)
+            self.predictions_argmax = tf.argmax(self.softmax_output, axis=-1, 
+                                                name='predictions_argmax', output_type=tf.int64)
+
+    def build_metrics(self):
+        with tf.name_scope('metrics'):
+            correct_prediction = tf.equal(self.predictions_argmax, tf.argmax(self.labels, -1))
+            self.accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+            tf.summary.scalar('accuracy', self.accuracy)

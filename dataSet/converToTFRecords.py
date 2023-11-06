@@ -1,6 +1,10 @@
 import tensorflow as tf
 import numpy as np
 import glob
+import os
+
+if not os.path.exists(tfRAddress):
+    os.makedirs(tfRAddress)
 
 tf.enable_eager_execution()
 
@@ -18,8 +22,8 @@ def image_example(image_bytes, label_bytes):
   }
   return tf.train.Example(features=tf.train.Features(feature=feature))
 
-writerTrain = tf.data.experimental.TFRecordWriter(tfRAddress+'train.tfrecords')
-writerTest = tf.data.experimental.TFRecordWriter(tfRAddress+'test.tfrecords')
+writerTrain = tf.data.experimental.TFRecordWriter(tfRAddress+'train.tfrecords', 'wb')
+writerTest = tf.data.experimental.TFRecordWriter(tfRAddress+'test.tfrecords', 'wb')
 
 image_paths = glob.glob('img/*.jpg')
 np.random.shuffle(image_paths)

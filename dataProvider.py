@@ -7,7 +7,11 @@ import numpy as np
 
 def load_and_preprocess_image(image_path, label_path):
     image = tf.io.read_file(image_path)
-    image = tf.image.decode_jpeg(image, channels=3)
+    try:
+        image = tf.image.decode_jpeg(image, channels=3)
+    except tf.errors.InvalidArgumentError:
+        print("Could not decode image:", image_path)
+        return None, None
     image = tf.image.convert_image_dtype(image, tf.float32)
 
     label = tf.io.read_file(label_path)
@@ -56,8 +60,8 @@ test_labels = glob.glob('./dataSet/test/labels/*.jpg')
 
 train_dataset = tf.data.Dataset.from_tensor_slices((train_images, train_labels))
 train_dataset = train_dataset.shuffle(buffer_size=len(train_images))
-train_dataset = train_dataset.map(load_and_preprocess_image)
-train_dataset = train_dataset.map(random_flip_left_right)
+train_dataset = train_dataset.map(load_and_preprocess_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+train_dataset = train_dataset.map(random_flip_left_right, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 train_dataset = train_dataset.map(one_hot_encode)
 train_dataset = train_dataset.map(random_crop)
 train_dataset = train_dataset.batch(8)
