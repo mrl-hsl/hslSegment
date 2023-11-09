@@ -1,49 +1,44 @@
 import tensorflow as tf
-import cv2
+import numpy as np
 import glob
+import os
+
+if not os.path.exists(tfRAddress):
+    os.makedirs(tfRAddress)
+
 tf.enable_eager_execution()
 
-showSampel = False
 tfRAddress = './'
 def _bytes_feature(value):
-  """Returns a bytes_list from a string / byte."""
   return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
-def _float_feature(value):
-  """Returns a float_list from a float / double."""
-  return tf.train.Feature(float_list=tf.train.FloatList(value=[value]))
-
 def _int64_feature(value):
-  """Returns an int64_list from a bool / enum / int / uint."""
   return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
-  
-def image_example(image_string, label_string):
-  image_shape = tf.image.decode_jpeg(image_string).shape
+
+def image_example(image_bytes, label_bytes):
   feature = {
-      'height': _int64_feature(image_shape[0]),
-      'width': _int64_feature(image_shape[1]),
-      'depth': _int64_feature(image_shape[2]),
-      'image': _bytes_feature(image_string),
-      'label': _bytes_feature(label_string)
+      'image': _bytes_feature(image_bytes),
+      'label': _bytes_feature(label_bytes)
   }
   return tf.train.Example(features=tf.train.Features(feature=feature))
 
-writerTrain =tf.python_io.TFRecordWriter(tfRAddress+'train.tfrecords')
-writerTest =tf.python_io.TFRecordWriter(tfRAddress+'test.tfrecords')
-i = 0
-for address in glob.glob('img/*.jpg'):
-  i+=1
-  if len(address.split('_'))==1:
-    image = cv2.imread(address)
-    label = cv2.imread(address.split('.')[0]+'_labeld.jpg')
-    if showSampel==True:
-      cv2.imshow("img",image)
-      cv2.imshow("label",label)
-      cv2.waitKey(0)
-    image_string = cv2.imencode('.jpg', image)[1].tostring()
-    label_string = cv2.imencode('.jpg', label)[1].tostring()
-    tf_example = image_example(image_string, label_string)
-    if i<200:
-      writerTest.write(tf_example.SerializeToString())
-    else:
-      writerTrain.write(tf_example.SerializeToString())
+writerTrain = tf.data.experimental.TFRecordWriter(tfRAddress+'train.tfrecords', 'wb')
+writerTest = tf.data.experimental.TFRecordWriter(tfRAddress+'test.tfrecords', 'wb')
+
+image_paths = glob.glob('img/*.jpg')
+np.random.shuffle(image_paths)
+
+for i, image_path in enumerate(image_paths):
+  image = tf.io.read_file(image_path)
+  label_path = image_path.split('.')[0] + '_labeld.jpg'
+  label = tf.io.read_file(label_path)
+
+  tf_example = image_example(image.numpy(), label.numpy())
+
+  if i < len(image_paths) // 5:
+    writerTest.write(tf_example.SerializeToString())
+  else:
+    writerTrain.write(tf_example.SerializeToString())
+
+writerTrain.close()
+writerTest.close()
